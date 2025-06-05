@@ -1,6 +1,6 @@
 import * as SecureStore from "expo-secure-store";
 
-const API_URL = "http://192.168.1.9:8000/api";
+const API_URL = "https://panel.losmejias.studioj2r.com/api";
 
 // Función para manejar login
 export const loginUser = async (username, password) => {
