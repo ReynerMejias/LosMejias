@@ -45,7 +45,7 @@ export default function Bienvenida({ navigation }) {
             alignSelf: "center",
           }}
         />
-        <Text style={{ fontSize: 22 }}>Los Mejias</Text>
+        <Text style={{ fontSize: 22 }}>TREMECA</Text>
       </View>
       <View>
         <Text style={{ marginBottom: 12, textAlign: "center" }}>

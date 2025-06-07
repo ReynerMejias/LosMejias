@@ -39,7 +39,7 @@ const theme = {
 // Crear el navegador stack
 const Stack = createStackNavigator();
 
-export default function Main() {
+export default function App() {
   return (
     <PaperProvider theme={theme}>
       <SafeAreaView
