@@ -6,22 +6,6 @@
       },
       "developmentClient": false,
       "distribution": "internal"
-<<<<<<< HEAD
     }
-=======
-    },
-    "preview": {
-      "distribution": "internal"
-    },
-    "production": {
-      "autoIncrement": true,
-      "android": {
-        "buildType": "apk"
-    }
-  }
-  },
-  "submit": {
-    "production": {}
->>>>>>> 1b48eea66ea8552597298d9b94642ad38f4c64f8
   }
 }
