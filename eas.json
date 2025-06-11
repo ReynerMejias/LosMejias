@@ -1,11 +1,16 @@
 {
   "build": {
-    "internal": {
+    "preview": {
       "android": {
         "buildType": "apk"
       },
-      "developmentClient": false,
       "distribution": "internal"
+    },
+    "production": {
+      "android": {
+        "buildType": "aab"
+      },
+      "distribution": "store"
     }
   }
 }

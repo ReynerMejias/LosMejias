@@ -20,20 +20,6 @@ import Bienvenida from "./src/screens/Bienvenida";
 import Correo from "./src/screens/Correo";
 
 
-import * as Font from 'expo-font';
-import AppLoading from 'expo-app-loading'; // o SplashScreen si usas Expo SDK 50+
-
-const [fontsLoaded] = Font.useFonts({
-  'Roboto': require('native-base/Fonts/Roboto.ttf'),
-  'Roboto_medium': require('native-base/Fonts/Roboto_medium.ttf'),
-  'MaterialIcons': require('@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/MaterialIcons.ttf'),
-});
-
-if (!fontsLoaded) {
-  return <AppLoading />;
-}
-
-
 // Personaliza tu esquema de colores oscuro
 const theme = {
   ...DefaultTheme,
