@@ -75,7 +75,7 @@ export default function InicioSesion({ navigation }) {
     >
       <Portal>
         <Dialog visible={visible} onDismiss={hideDialog}>
-          <Dialog.Title>{title}</Dialog.Title>
+          <Dialog.Title>{title.toString()}</Dialog.Title>
           <Dialog.Content>
             <Text>{message}</Text>
           </Dialog.Content>

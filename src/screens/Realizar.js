@@ -52,12 +52,17 @@ export default function Realizar({ navigation }) {
         }}
       >
         {loading && <ActivityIndicator />}
+        {!loading && lugares.length === 0 && (
+          <Card>
+            <Card.Title title="No hay lugares disponibles" />
+          </Card>
+        )}
         {lugares.map((lugar) => (
           <TouchableWithoutFeedback
             key={lugar.id} // Asegúrate de que cada lugar tenga una propiedad 'id' única
             onPress={() => handleCardPress(lugar)} // Aquí puedes usar el nombre o cualquier campo del lugar
           >
-            <Card style={{ backgroundColor: colors.surface }}>
+            <Card style={{ backgroundColor: colors.surface, borderRadius: 12, elevation: 2, }}>
               <Card.Title
                 title={lugar.nombre}
                 subtitle={`Lectura: ${lugar.dia} de cada mes`}

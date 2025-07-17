@@ -3,8 +3,9 @@ import {
   MD3DarkTheme as DefaultTheme,
   PaperProvider,
 } from "react-native-paper";
-
-import { SafeAreaView, StatusBar } from "react-native";
+import "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { StatusBar } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 
@@ -19,8 +20,6 @@ import Solicitud from "./src/screens/Solicitud";
 import Bienvenida from "./src/screens/Bienvenida";
 import Correo from "./src/screens/Correo";
 
-
-// Personaliza tu esquema de colores oscuro
 const theme = {
   ...DefaultTheme,
   colors: {
@@ -37,21 +36,18 @@ const theme = {
   },
 };
 
-// Crear el navegador stack
 const Stack = createStackNavigator();
 
 export default function App() {
   return (
     <PaperProvider theme={theme}>
-      <SafeAreaView
-        style={{ flex: 1, backgroundColor: theme.colors.background }}
-      >
+      <SafeAreaProvider>
         <StatusBar barStyle="light-content" />
         <NavigationContainer theme={theme}>
           <Stack.Navigator
             initialRouteName="InicioSesion"
             screenOptions={{
-              headerShown: false, // Oculta encabezados si no los necesitas
+              headerShown: false,
             }}
           >
             <Stack.Screen name="InicioSesion" component={InicioSesion} />
@@ -65,7 +61,7 @@ export default function App() {
             <Stack.Screen name="Correo" component={Correo} />
           </Stack.Navigator>
         </NavigationContainer>
-      </SafeAreaView>
+      </SafeAreaProvider>
     </PaperProvider>
   );
 }

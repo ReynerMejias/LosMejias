@@ -1,6 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useState, useCallback, useEffect } from "react";
-import { View, ScrollView, TouchableWithoutFeedback, Text } from "react-native";
+import {
+  View,
+  ScrollView,
+  TouchableWithoutFeedback,
+  Text,
+  StatusBar,
+  Platform,
+} from "react-native";
 import {
   Appbar,
   Card,
@@ -20,22 +27,19 @@ export default function Clientes({ navigation }) {
   );
 
   const [Clientes, setClientes] = useState([]);
-  const [filteredClientes, setFilteredClientes] = useState([]); // Lista filtrada
-  const [search, setSearch] = useState(""); // Estado de búsqueda
+  const [filteredClientes, setFilteredClientes] = useState([]);
+  const [search, setSearch] = useState("");
   const route = useRoute();
   const { lugar } = route.params;
   const [loading, setLoading] = useState(true);
   const [mostrarCompletados, setMostrarCompletados] = useState(true);
   let clientesCompletados = 0;
-
   const mesHoy = new Date().getMonth() + 1;
 
-  // Manejar la selección de un cliente
   const handleCardPress = (clienteLugarCompletado) => {
     navigation.navigate("Lectura", { clienteLugarCompletado });
   };
 
-  // Cargar preferencia almacenada
   useEffect(() => {
     const cargarPreferencia = async () => {
       const valorGuardado = await AsyncStorage.getItem("mostrarCompletados");
@@ -46,7 +50,6 @@ export default function Clientes({ navigation }) {
     cargarPreferencia();
   }, []);
 
-  // Guardar preferencia cuando cambia
   const toggleMostrarCompletados = async () => {
     const nuevoEstado = !mostrarCompletados;
     setMostrarCompletados(nuevoEstado);
@@ -57,7 +60,7 @@ export default function Clientes({ navigation }) {
     try {
       const data = await getClientes(lugar.nombre);
       setClientes(data);
-      setFilteredClientes(data); // Inicializa la lista filtrada con todos los clientes
+      setFilteredClientes(data);
     } catch (error) {
       console.error(error);
     } finally {
@@ -76,7 +79,6 @@ export default function Clientes({ navigation }) {
     }, [lugar])
   );
 
-  // Filtrar clientes en tiempo real según búsqueda
   useEffect(() => {
     if (search.trim() === "") {
       setFilteredClientes(Clientes);
@@ -91,21 +93,25 @@ export default function Clientes({ navigation }) {
     }
   }, [search, Clientes]);
 
+  const statusBarHeight =
+    Platform.OS === "android" ? StatusBar.currentHeight || 0 : 0;
+
   return (
-    <ScrollView>
+    <View
+      style={{ flex: 1, backgroundColor: colors.background }}
+    >
+      {/* 🔷 Appbar Header */}
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
         <Appbar.Content title={loading ? "Cargando..." : lugar.nombre} />
         <Appbar.Action
-          icon={
-            mostrarCompletados ? "bookmark-check" : "bookmark-check-outline"
-          }
+          icon={mostrarCompletados ? "bookmark-check" : "bookmark-check-outline"}
           onPress={toggleMostrarCompletados}
         />
       </Appbar.Header>
 
-      <View style={{ padding: 16 }}>
-        {/* 🔍 Barra de búsqueda */}
+      <ScrollView contentContainerStyle={{ padding: 16 }}>
+        {/* 🔍 Buscador */}
         <Searchbar
           placeholder="Buscar cliente..."
           value={search}
@@ -113,6 +119,38 @@ export default function Clientes({ navigation }) {
           style={{ marginBottom: 10 }}
         />
 
+        {/* ✅ Estado de lecturas (ahora se ve justo después del buscador) */}
+        {!loading && filteredClientes.length > 0 && (
+          <View
+            style={{
+              marginBottom: 16,
+              padding: 12,
+              backgroundColor: colors.card,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: colors.primary,
+              elevation: 2,
+            }}
+          >
+            <Text style={{ color: colors.text, fontSize: 16, fontWeight: "600" }}>
+              Estado de lecturas
+            </Text>
+            <Text style={{ color: colors.text, fontSize: 14, marginTop: 4 }}>
+              {
+                (clientesCompletados = filteredClientes.filter((cliente) => {
+                  const isCompletada =
+                    cliente.ultima_lectura?.fecha_lectura &&
+                    parseInt(cliente.ultima_lectura.fecha_lectura.split("-")[1]) >= mesHoy;
+                  return isCompletada;
+                }).length)
+              }
+              {" de "}
+              {filteredClientes.length} clientes ya han registrado su lectura este mes.
+            </Text>
+          </View>
+        )}
+
+        {/* 📋 Lista de clientes */}
         {loading ? (
           <ActivityIndicator />
         ) : filteredClientes.length === 0 ? (
@@ -123,16 +161,9 @@ export default function Clientes({ navigation }) {
           filteredClientes.map((cliente, index) => {
             const isCompletada =
               cliente.ultima_lectura?.fecha_lectura &&
-              parseInt(cliente.ultima_lectura.fecha_lectura.split("-")[1]) >=
-                mesHoy;
+              parseInt(cliente.ultima_lectura.fecha_lectura.split("-")[1]) >= mesHoy;
 
-            if (isCompletada) {
-              clientesCompletados++;
-            }
-
-            if (!mostrarCompletados && isCompletada) {
-              return null;
-            }
+            if (!mostrarCompletados && isCompletada) return null;
 
             return (
               <TouchableWithoutFeedback
@@ -149,7 +180,11 @@ export default function Clientes({ navigation }) {
                 >
                   <Card.Title
                     title={`${cliente.nombre} "${cliente.lote}"`}
-                    subtitle={`Medidor: ${cliente.medidor}`}
+                    subtitle={
+                      cliente.ultima_lectura
+                        ? `Medidor: ${cliente.medidor} (últ.: ${cliente.ultima_lectura.lectura})`
+                        : `Medidor: ${cliente.medidor} (últ.: ${cliente.metros})`
+                    }
                     left={() =>
                       isCompletada ? (
                         <AvatarCheck />
@@ -176,10 +211,7 @@ export default function Clientes({ navigation }) {
             );
           })
         )}
-        <Text style={{ color: colors.text, textAlign: "center" }}>
-          {clientesCompletados} de {Clientes.length} clientes completados
-        </Text>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }

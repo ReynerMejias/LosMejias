@@ -51,16 +51,21 @@ export default function Bienvenida({ navigation }) {
         <Text style={{ marginBottom: 12, textAlign: "center" }}>
           Bienvenido (a)
         </Text>
-        <Text
-          style={{
-            marginBottom: 16,
-            fontSize: 22,
-            textAlign: "center",
-            color: colors.text,
-          }}
-        >
-          {fullName || <ActivityIndicator />}
-        </Text>
+        <View style={{ alignItems: "center", marginBottom: 16 }}>
+          {fullName ? (
+            <Text
+              style={{
+                fontSize: 22,
+                textAlign: "center",
+                color: colors.text,
+              }}
+            >
+              {fullName}
+            </Text>
+          ) : (
+            <ActivityIndicator />
+          )}
+        </View>
       </View>
       <View style={{ justifyContent: "center", gap: 12 }}>
         <Button
@@ -69,7 +74,7 @@ export default function Bienvenida({ navigation }) {
           disabled={loading}
           labelStyle={{ fontSize: 16 }}
           contentStyle={{
-            height: 78, // Asegura que el contenido tenga la altura deseada
+            height: 78, 
           }}
           style={{
             backgroundColor: colors.primary,

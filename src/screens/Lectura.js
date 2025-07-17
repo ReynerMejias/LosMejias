@@ -37,22 +37,28 @@ export default function Lectura({ navigation }) {
   const [content, setContent] = useState("");
   const [visible, setVisible] = useState(false);
   const [image, setImage] = useState(null);
+  const [multa, setMulta] = useState("");
+  const [multaDetalles, setMultaDetalles] = useState("");
   const [enabled, setEnabled] = useState(false);
   const [completada, setCompletada] = useState(clienteLugarCompletado[2]);
+  const [printAfterSave, setPrintAfterSave] = useState(false);
   const AvatarLetter = ({ letter }) => <Avatar.Text size={45} label={letter} />;
   const numeroComprobante =
     cliente.ultima_lectura !== null
       ? `Comprobante #${cliente.ultima_lectura.fecha_lectura.replace(
           /-/g,
           ""
-        )}${cliente.ultima_lectura.id}`
+        )}${cliente.ultima_lectura.id} - ${lugar.codigo}`
       : "Comprobante sin lectura anterior";
 
   useEffect(() => {
-    if (lectura !== undefined && lectura !== clienteUltimaLectura.toString()) {
+    if (lectura !== undefined && lectura !== "") {
       setEnabled(true);
+    } else {
+      setEnabled(false);
     }
-  }, [lectura]);
+
+  }, [lectura, multa]);
 
   useEffect(() => {
     if (cliente.ultima_lectura !== null) {
@@ -62,7 +68,19 @@ export default function Lectura({ navigation }) {
       if (completada && cliente.ultima_lectura.foto !== null) {
         setImage(cliente.ultima_lectura.foto);
       }
+
+      if (cliente.ultima_lectura.moratorio && completada)  {
+        setMulta(cliente.ultima_lectura.moratorio.toString());
+        setMultaDetalles(cliente.ultima_lectura.observacion || "");
+      } else {
+        setMulta("0");
+        setMultaDetalles("");
+      }
+    } else {
+      // No hay lectura anterior, usar cliente.metros
+      setClienteUltimaLectura(cliente.metros);
     }
+
   }, [cliente]);
 
   useEffect(() => {
@@ -92,19 +110,34 @@ export default function Lectura({ navigation }) {
     }, [cliente.id])
   );
 
-  const handleInputChange = (text) => {
+  const handleInputChangeLectura = (text) => {
     // Reemplaza cualquier carácter que no sea un número
     const numericValue = text.replace(/[^0-9]/g, "");
     setLectura(numericValue);
   };
 
+  const handleInputChangeMulta = (text) => {
+    // Reemplaza cualquier carácter que no sea un número
+    const numericValue = text.replace(/[^0-9]/g, "");
+    setMulta(numericValue);
+  };
+
   const handleSave = async () => {
     setEnabled(false);
-    if (parseInt(lectura) < clienteUltimaLecturaAnterior) {
+
+    const validarLectura = completada ? clienteUltimaLecturaAnterior : clienteUltimaLectura;
+
+    if (parseInt(lectura) < validarLectura) { 
       setDialogIcon("alert");
       setTitle("Hubo un problema");
-      setContent("La lectura no puede ser menor a la anterior.");
+      setContent(
+        completada
+          ? "La lectura ingresada no puede ser menor que la anterior ya completada."
+          : "La lectura ingresada no puede ser menor que la última lectura registrada."
+      );
       setVisible(true);
+      setPrintAfterSave(false);
+      return;
     } else {
       setLoading(true);
 
@@ -112,8 +145,6 @@ export default function Lectura({ navigation }) {
         const [day, month, year] = date.split("/");
         return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
       };
-
-      const usuario = await getUsuario();
 
       const data = new FormData();
       data.append("lectura", lectura);
@@ -124,8 +155,6 @@ export default function Lectura({ navigation }) {
           "fecha_lectura",
           formatDate(getFecha(cliente, completada, lugar))
         );
-        data.append("lectura_anterior", clienteUltimaLectura);
-        data.append("created_by", usuario.id);
       }
 
       if (image !== null) {
@@ -135,6 +164,12 @@ export default function Lectura({ navigation }) {
           type: "image/jpg",
         });
       }
+
+      if (multa && multa !== "0") {
+        data.append("moratorio", multa);
+        data.append("observacion", multaDetalles);
+      }
+
 
       try {
         if (!completada) {
@@ -147,11 +182,18 @@ export default function Lectura({ navigation }) {
         setTitle("¡Listo!");
         setContent("La lectura se guardó correctamente.");
         setVisible(true);
+        
 
         // Actualizar el estado del cliente
         const clienteActualizado = await getCliente(cliente.id);
         setCliente(clienteActualizado);
         setCompletada(true);
+
+        // Si viene desde "Guardar e imprimir", dejamos preparado para imprimir luego
+        if (printAfterSave) {
+          setPrintAfterSave(false); // lo reiniciamos por si acaso
+        }
+
       } catch (error) {
         setDialogIcon("alert");
         setTitle("Hubo un problema");
@@ -178,7 +220,25 @@ export default function Lectura({ navigation }) {
               <Text>{content}</Text>
             </Dialog.Content>
             <Dialog.Actions>
-              <Button onPress={() => setVisible(false)}>OK</Button>
+              <Button
+                onPress={() => {
+                  setVisible(false);
+                  if (printAfterSave) {
+                    imprimirDocumento(
+                      cliente,
+                      lugar,
+                      numeroComprobante,
+                      lectura,
+                      clienteUltimaLecturaAnterior,
+                      getFecha,
+                      getFechaVencimiento,
+                      true // siempre será true después de guardar
+                    );
+                  }
+                }}
+              >
+                OK
+              </Button>
             </Dialog.Actions>
           </Dialog>
         </Portal>
@@ -189,7 +249,7 @@ export default function Lectura({ navigation }) {
               completada && cliente.ultima_lectura
                 ? `${cliente.ultima_lectura.fecha_lectura.replace(/-/g, "")}${
                     cliente.ultima_lectura.id
-                  }`
+                  }-${lugar.codigo}`
                 : "Crear lectura"
             }
           />
@@ -266,15 +326,16 @@ export default function Lectura({ navigation }) {
               mode="outlined"
               placeholder="Lectura"
               value={lectura}
-              onChangeText={handleInputChange}
+              onChangeText={handleInputChangeLectura}
               keyboardType="numeric"
               inputMode="numeric"
               maxLength={6}
             />
-            <Text style={{ fontSize: 12 }}>
+            <Text style={{ fontSize: 14, color: colors.accent, fontStyle: "italic" }}>
               {completada
-                ? `Lectura anterior:${clienteUltimaLecturaAnterior}`
-                : `Lectura anterior:${clienteUltimaLectura}`}
+                ? `Lectura anterior: ${clienteUltimaLecturaAnterior}`
+                : `Lectura anterior: ${clienteUltimaLectura}`
+              }
             </Text>
           </View>
 
@@ -337,31 +398,60 @@ export default function Lectura({ navigation }) {
             </Button>
           )}
 
-          {completada && (
-            <View>
-              <Divider
-                style={{ backgroundColor: colors.accent, marginBottom: 10 }}
-              />
+          <Text style={{ fontSize: 16 }}>
+            3. Multa (opcional)
+          </Text>
+          <TextInput
+            mode="outlined"
+            placeholder="Monto de la multa"
+            value={multa}
+            onChangeText={handleInputChangeMulta}
+            keyboardType="numeric"
+            inputMode="numeric"
+            maxLength={10}
+          />
+          <TextInput
+            mode="outlined"
+            placeholder="Detalles de la multa (opcional)"
+            value={multaDetalles}
+            onChangeText={setMultaDetalles}
+            multiline
+            numberOfLines={3}
+            style={{ marginTop: 8, height: 80 }}
+          />
 
-              <View>
-                <Text style={{ fontSize: 13 }}>
-                  Costo por metro: ₡{lugar.valor}
+          
+          {completada && (
+              <View style={{ padding: 10, backgroundColor: colors.surface, borderRadius: 12, borderColor: colors.accent, borderWidth: 1, borderStyle: 'dashed'}}>
+                <Text style={{ fontSize: 14, fontWeight: "600", marginBottom: 4 }}>
+                  Detalles de consumo:
                 </Text>
-                <Text style={{ fontSize: 13 }}>
-                  Metros:{" "}
-                  {clienteUltimaLectura > clienteUltimaLecturaAnterior
-                    ? clienteUltimaLectura - clienteUltimaLecturaAnterior
-                    : 0}
+
+                <Divider style={{ marginBottom: 8 , backgroundColor: colors.accent }} /> 
+
+                <Text style={{ fontSize: 13, marginBottom: 2 }}>
+                  💧 Costo por metro cúbico: <Text style={{ fontWeight: "500" }}>₡{lugar.valor}</Text>
                 </Text>
-                <Text style={{ fontSize: 13 }}>
-                  Total a pagar: ₡
-                  {clienteUltimaLectura > clienteUltimaLecturaAnterior
-                    ? (clienteUltimaLectura - clienteUltimaLecturaAnterior) *
-                      lugar.valor
-                    : 0}
+
+                <Text style={{ fontSize: 13, marginBottom: 2 }}>
+                  📏 Metros consumidos:{" "}
+                  <Text style={{ fontWeight: "500" }}>
+                    {clienteUltimaLectura > clienteUltimaLecturaAnterior
+                      ? clienteUltimaLectura - clienteUltimaLecturaAnterior
+                      : 0}
+                  </Text>
+                </Text>
+
+                <Text style={{ fontSize: 13, marginTop: 4 }}>
+                  💰 Total a pagar:{" "}
+                  <Text style={{ fontWeight: "bold", color: colors.white }}>
+                    ₡
+                    {clienteUltimaLectura > clienteUltimaLecturaAnterior
+                      ? (clienteUltimaLectura - clienteUltimaLecturaAnterior) * lugar.valor + parseInt(multa, 10)
+                      : 0 + parseInt(multa, 10)}  
+                  </Text>
                 </Text>
               </View>
-            </View>
           )}
 
           <View
@@ -398,17 +488,8 @@ export default function Lectura({ navigation }) {
                   alignSelf: "center",
                 }}
                 onPress={async () => {
+                  setPrintAfterSave(true);
                   await handleSave();
-                  imprimirDocumento(
-                    cliente,
-                    lugar,
-                    numeroComprobante,
-                    clienteUltimaLectura,
-                    lectura,
-                    getFecha,
-                    getFechaVencimiento,
-                    completada
-                  );
                 }}
                 disabled={!enabled}
               >

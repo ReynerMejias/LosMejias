@@ -14,8 +14,8 @@ export const imprimirDocumento = async (
       <html>
         <head>
           <style>
-            body { font-family: monospace; text-align: center; font-size: 12px; }
-            h1 { font-size: 16px; margin: 5px 0; }
+            body { font-family: monospace; text-align: center; font-size: 14px; }
+            h1 { font-size: 18px; margin: 5px 0; }
             .datos { text-align: left; margin: 10px 0; }
             .resaltado { font-weight: bold; }
             hr { border: 0; border-top: 1px dashed black; margin: 10px 0; }
@@ -43,6 +43,13 @@ export const imprimirDocumento = async (
           )}</p>
           <p><span class="resaltado">Lectura anterior:</span> ${clienteUltimaLecturaAnteriorValor}</p>
           <p><span class="resaltado">Lectura actual:</span> ${clienteUltimaLecturaValor}</p>
+          
+          ${
+            parseInt(cliente.ultima_lectura.moratorio, 10) > 0
+              ? `<hr>\n<p><span class="resaltado">Multa:</span> CRC ${cliente.ultima_lectura.moratorio}</p>\n<p><span class="resaltado">Motivo:</span> ${cliente.ultima_lectura.observacion || 'No especificado'}</p>`
+              : ''
+          }
+          
           <hr>
           <p><span class="resaltado">Costo por metro:</span> CRC ${
             lugar.valor
@@ -56,8 +63,8 @@ export const imprimirDocumento = async (
             clienteUltimaLecturaValor > clienteUltimaLecturaAnteriorValor
               ? (clienteUltimaLecturaValor -
                   clienteUltimaLecturaAnteriorValor) *
-                lugar.valor
-              : 0
+                lugar.valor + parseInt(cliente.ultima_lectura.moratorio, 10)
+              : 0 + parseInt(cliente.ultima_lectura.moratorio, 10)
           }</p>
           <hr>
           <p>Recuerde ir a la oficina a cancelar su factura.</p>

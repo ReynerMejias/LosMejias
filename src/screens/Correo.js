@@ -1,4 +1,4 @@
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect } from "react";
 import { View } from "react-native";
 import {
   Button,
@@ -55,7 +55,7 @@ export default function Correo({ navigation }) {
     <View style={{ flex: 1 }}>
       <Portal>
         <Dialog visible={visible} onDismiss={() => setVisible(false)}>
-          <Dialog.Icon icon={dialogIcon} color={colors.error} />
+          <Dialog.Icon icon={dialogIcon} color={dialogIcon === "check-circle" ? colors.primary : colors.error} />
           <Dialog.Title>{title}</Dialog.Title>
           <Dialog.Content>
             <Text>{content}</Text>
@@ -73,10 +73,9 @@ export default function Correo({ navigation }) {
         style={{
           marginBottom: 16,
           padding: 16,
-          gap: 16,
         }}
       >
-        <Card style={{ backgroundColor: colors.surface }} mode="outlined">
+        <Card style={{ backgroundColor: colors.surface, marginBottom:16 }} mode="outlined">
           <Card.Title
             title={cliente.nombre}
             subtitle={cliente.lote}
@@ -98,7 +97,7 @@ export default function Correo({ navigation }) {
           disabled={disabled}
           value={correo}
           onChangeText={(text) => setcorreo(text)}
-          style={{ backgroundColor: colors.surface }}
+          style={{ backgroundColor: colors.surface, marginBottom:16 }}
         />
 
         <Button

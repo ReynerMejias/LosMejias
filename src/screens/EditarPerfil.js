@@ -14,7 +14,7 @@ import { patchUsuario } from "../api";
 import * as SecureStore from "expo-secure-store";
 
 export default function EditarPerfi({ navigation }) {
-  const { colors } = useTheme("");
+  const { colors } = useTheme();
   const [username, setUsername] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -90,7 +90,6 @@ export default function EditarPerfi({ navigation }) {
       </Appbar.Header>
       <View
         style={{
-          gap: 16,
           padding: 16,
         }}
       >
@@ -98,6 +97,7 @@ export default function EditarPerfi({ navigation }) {
         <TextInput
           mode="outlined"
           placeholder="Usuario"
+          style={{marginBottom:16}}
           value={username}
           onChangeText={(text) => setUsername(text)}
         />
@@ -106,6 +106,7 @@ export default function EditarPerfi({ navigation }) {
         <TextInput
           mode="outlined"
           placeholder="Nombre"
+          style={{marginBottom:16}}
           value={firstName}
           onChangeText={(text) => setFirstName(text)}
         />
@@ -114,6 +115,7 @@ export default function EditarPerfi({ navigation }) {
         <TextInput
           mode="outlined"
           placeholder="Apellido"
+          style={{marginBottom:16}}
           value={lastName}
           onChangeText={(text) => setLastName(text)}
         />
@@ -122,6 +124,7 @@ export default function EditarPerfi({ navigation }) {
         <TextInput
           mode="outlined"
           placeholder="Correo"
+          style={{marginBottom:16}}
           value={email}
           onChangeText={(text) => setEmail(text)}
         />
@@ -130,6 +133,7 @@ export default function EditarPerfi({ navigation }) {
         <TextInput
           mode="outlined"
           placeholder="Contraseña"
+          style={{marginBottom:16}}
           value={password}
           onChangeText={(text) => setPassword(text)}
           secureTextEntry={secureTextEntry}
@@ -146,6 +150,7 @@ export default function EditarPerfi({ navigation }) {
           mode="outlined"
           placeholder="Confirmar Contraseña"
           value={confirmPassword}
+          style={{marginBottom:16}}
           onChangeText={(text) => setConfirmPassword(text)}
           secureTextEntry={secureTextEntry}
           right={
@@ -155,25 +160,25 @@ export default function EditarPerfi({ navigation }) {
             />
           }
         />
-        <Divider />
-        <Text style={{ fontSize: 12, textAlign: "center" }}>
-          Si no deseas cambiar la contraseña, deja los campos en blanco.
-        </Text>
-
         <Button
           mode="contained"
           icon="content-save"
+          
           contentStyle={{ height: 50 }}
           loading={loading}
           style={{
             backgroundColor: colors.primary,
             width: "100%",
             alignSelf: "center",
+            marginBottom: 5
           }}
           onPress={handleSave}
         >
           Guardar
         </Button>
+        <Text style={{ fontSize: 12, textAlign: "center" }}>
+          Si no deseas cambiar la contraseña, deja los campos en blanco.
+        </Text>
       </View>
     </ScrollView>
   );

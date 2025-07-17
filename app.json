@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "LosMejias",
+    "name": "Tremeca",
     "slug": "LosMejias",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -21,7 +21,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.reyner15.LosMejias"
+      "package": "com.reyner15.Tremeca"
     },
     "web": {
       "favicon": "./assets/favicon.png"

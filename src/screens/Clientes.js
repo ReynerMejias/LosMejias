@@ -14,13 +14,12 @@ export default function Clientes({ navigation }) {
   const { colors } = useTheme();
   const AvatarLetter = ({ letter }) => <Avatar.Text size={45} label={letter} />;
 
-  const [Clientes, setClientes] = useState([]);
-  const [filteredClientes, setFilteredClientes] = useState([]); // Lista filtrada
-  const [search, setSearch] = useState(""); // Estado de búsqueda
+  const [clientes, setClientes] = useState([]);
+  const [filteredClientes, setFilteredClientes] = useState([]);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [lugares, setLugares] = useState({});
 
-  // Función para manejar el toque en la card
   const handleCardPress = (cliente) => {
     navigation.navigate("Solicitud", { cliente });
   };
@@ -29,9 +28,8 @@ export default function Clientes({ navigation }) {
     try {
       const data = await getClientes("");
       setClientes(data);
-      setFilteredClientes(data); // Inicializa la lista filtrada con todos los clientes
+      setFilteredClientes(data);
 
-      // Obtener lugares
       const lugaresData = {};
       for (const cliente of data) {
         if (!lugaresData[cliente.lugar]) {
@@ -51,12 +49,11 @@ export default function Clientes({ navigation }) {
     fetchClientesLugar();
   }, []);
 
-  // Filtrar clientes dinámicamente según el input
   useEffect(() => {
     if (search.trim() === "") {
-      setFilteredClientes(Clientes);
+      setFilteredClientes(clientes);
     } else {
-      const filtered = Clientes.filter(
+      const filtered = clientes.filter(
         (cliente) =>
           cliente.nombre.toLowerCase().includes(search.toLowerCase()) ||
           cliente.lote.toLowerCase().includes(search.toLowerCase()) ||
@@ -64,7 +61,7 @@ export default function Clientes({ navigation }) {
       );
       setFilteredClientes(filtered);
     }
-  }, [search, Clientes]);
+  }, [search, clientes]);
 
   return (
     <ScrollView>
@@ -87,9 +84,9 @@ export default function Clientes({ navigation }) {
             No hay clientes.
           </Text>
         ) : (
-          filteredClientes.map((cliente, index) => (
+          filteredClientes.map((cliente) => (
             <TouchableWithoutFeedback
-              key={index}
+              key={cliente.id}
               onPress={() => handleCardPress(cliente)}
             >
               <Card

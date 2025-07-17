@@ -73,7 +73,7 @@ export default function Solicitud({ navigation }) {
       <Portal>
         <Dialog visible={visible} onDismiss={() => setVisible(false)}>
           <Dialog.Icon icon={dialogIcon} color={colors.error} />
-          <Dialog.Title>{title}</Dialog.Title>
+          <Dialog.Title>{String(title)}</Dialog.Title>
           <Dialog.Content>
             <Text>{content}</Text>
           </Dialog.Content>
