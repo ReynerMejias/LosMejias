@@ -56,8 +56,7 @@ export default function Clientes({ navigation }) {
       const filtered = clientes.filter(
         (cliente) =>
           cliente.nombre.toLowerCase().includes(search.toLowerCase()) ||
-          cliente.lote.toLowerCase().includes(search.toLowerCase()) ||
-          cliente.medidor.toString().includes(search)
+          cliente.lote.toLowerCase().includes(search.toLowerCase())
       );
       setFilteredClientes(filtered);
     }

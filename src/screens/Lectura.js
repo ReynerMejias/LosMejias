@@ -13,12 +13,73 @@ import {
   Card,
   Avatar,
   Banner,
+  Chip,
+  IconButton,
 } from "react-native-paper";
-import { postLectura, getUsuario, getCliente, patchLectura } from "../api";
+import { postLectura, getUsuario, getCliente, patchLectura, getSolicitudAbiertaPorCliente } from "../api";
 import { useRoute, useFocusEffect } from "@react-navigation/native";
 import { getFecha, getFechaVencimiento } from "../utils/dateUtils";
 import { imprimirDocumento } from "../utils/printUtils";
 import { takePhoto } from "../utils/imageUtils";
+
+function SolicitudLecturaCardSession({
+  visible = true,
+  onClose,                  // te avisa cuando el usuario la cierra
+  titulo = "Solicitud de lectura",
+  motivo = "Cambiar lectura a 0",
+  detalle = "",
+  onIrASolicitud,
+}) {
+  const { colors } = useTheme();
+  const [expanded, setExpanded] = useState(false);
+
+  if (!visible) return null;
+
+  return (
+    <Card
+      mode="outlined"
+      style={{
+        borderColor: colors.error,
+        backgroundColor: colors.elevation?.level1 || colors.surface,
+      }}
+    >
+      <Card.Title
+        title={titulo}
+        subtitle={motivo}
+        left={(props) => <Avatar.Icon {...props} size={40} icon="alert" />}
+        right={(props) => (
+          <IconButton
+            {...props}
+            icon="close"
+            onPress={onClose}
+            accessibilityLabel="Ocultar solicitud (esta vez)"
+          />
+        )}
+      />
+
+      {/* Detalle colapsable */}
+      {!!detalle && (
+        <View style={{ padding: 16, paddingTop: 0 }}>
+          <Text numberOfLines={expanded ? 40 : 3} style={{ opacity: 0.9 }}>
+            {detalle}
+          </Text>
+          {detalle.length > 120 && (
+            <Button
+              onPress={() => setExpanded((e) => !e)}
+              compact
+              icon={expanded ? "chevron-up" : "chevron-down"}
+              style={{ backgroundColor: colors.backdrop, fontSize: 12, marginTop: 4 }}
+              textColor={colors.onPrimary} 
+            >
+              {expanded ? "Ver menos" : "Ver más"}
+            </Button>
+          )}
+        </View>
+      )}
+    </Card>
+  );
+}
+
 
 export default function Lectura({ navigation }) {
   const { colors } = useTheme();
@@ -42,6 +103,31 @@ export default function Lectura({ navigation }) {
   const [enabled, setEnabled] = useState(false);
   const [completada, setCompletada] = useState(clienteLugarCompletado[2]);
   const [printAfterSave, setPrintAfterSave] = useState(false);
+  const [mostrarSolicitud, setMostrarSolicitud] = useState(true);
+  const [solicitud, setSolicitud] = useState(null);
+  const [cargandoSolicitud, setCargandoSolicitud] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      (async () => {
+        try {
+          setCargandoSolicitud(true);
+          const s = await getSolicitudAbiertaPorCliente(cliente.id);
+          if (alive) setSolicitud(s);
+        } catch (e) {
+          console.error("Error al obtener solicitud:", e);
+          if (alive) setSolicitud(null);
+        } finally {
+          if (alive) setCargandoSolicitud(false);
+        }
+      })();
+      return () => { alive = false; };
+  }, [cliente.id])
+);
+
+const tieneSolicitud = !!solicitud;
+
   const AvatarLetter = ({ letter }) => <Avatar.Text size={45} label={letter} />;
   const numeroComprobante =
     cliente.ultima_lectura !== null
@@ -421,6 +507,26 @@ export default function Lectura({ navigation }) {
           />
 
           
+          {cargandoSolicitud && <ActivityIndicator animating style={{ alignSelf: "center" }} />}
+
+          {tieneSolicitud && (
+            <>
+              <SolicitudLecturaCardSession
+                visible={mostrarSolicitud}
+                onClose={() => setMostrarSolicitud(false)}
+                onIrASolicitud={() => handleSolicitud(cliente)}
+                titulo={"Solicitud de lectura"}
+                motivo={solicitud?.titulo ?? "Solicitud"}
+                detalle={solicitud?.descripcion ?? ""}
+              />
+              {!mostrarSolicitud && (
+                <Button mode="text" icon="eye" onPress={() => setMostrarSolicitud(true)}>
+                  Mostrar solicitud
+                </Button>
+              )}
+            </>
+          )}
+
           {completada && (
               <View style={{ padding: 10, backgroundColor: colors.surface, borderRadius: 12, borderColor: colors.accent, borderWidth: 1, borderStyle: 'dashed'}}>
                 <Text style={{ fontSize: 14, fontWeight: "600", marginBottom: 4 }}>
@@ -454,6 +560,8 @@ export default function Lectura({ navigation }) {
               </View>
           )}
 
+          
+
           <View
             style={{
               flexDirection: "row",
@@ -468,7 +576,7 @@ export default function Lectura({ navigation }) {
               icon={!completada ? "content-save" : "content-save-edit"}
               style={{
                 backgroundColor: colors.primary,
-                width: `${completada ? "100%" : "50%"}`,
+                width: "100%",
                 alignSelf: "center",
               }}
               onPress={handleSave}
@@ -477,25 +585,6 @@ export default function Lectura({ navigation }) {
               {!completada ? "Guardar" : "Editar lectura"}
             </Button>
 
-            {!completada && (
-              <Button
-                mode="contained"
-                contentStyle={{ height: 58 }}
-                icon={!completada ? "content-save" : "content-save-edit"}
-                style={{
-                  backgroundColor: colors.primary,
-                  width: "50%",
-                  alignSelf: "center",
-                }}
-                onPress={async () => {
-                  setPrintAfterSave(true);
-                  await handleSave();
-                }}
-                disabled={!enabled}
-              >
-                {!completada ? "Guardar e imprimir" : "Editar"}
-              </Button>
-            )}
           </View>
         </View>
       </ScrollView>
