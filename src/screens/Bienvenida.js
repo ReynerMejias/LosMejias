@@ -71,7 +71,7 @@ export default function Bienvenida({ navigation }) {
         <Button
           mode="contained"
           icon="pen"
-          disabled={loading}
+          disabled={false}
           labelStyle={{ fontSize: 16 }}
           contentStyle={{
             height: 78, 
@@ -85,24 +85,6 @@ export default function Bienvenida({ navigation }) {
           onPress={() => navigation.navigate("Realizar")}
         >
           Realizar lectura
-        </Button>
-        <Button
-          mode="contained"
-          icon="comment-alert"
-          disabled={loading}
-          labelStyle={{ fontSize: 16 }}
-          contentStyle={{
-            height: 78, // Asegura que el contenido tenga la altura deseada
-          }}
-          style={{
-            backgroundColor: colors.primary,
-            width: "90%",
-            alignSelf: "center",
-            justifyContent: "center",
-          }}
-          onPress={() => navigation.navigate("Clientes")}
-        >
-          Solicitar cambio
         </Button>
         <Button
           mode="contained"
@@ -121,6 +103,25 @@ export default function Bienvenida({ navigation }) {
           onPress={() => navigation.navigate("EditarPerfil")}
         >
           Editar perfil
+        </Button>
+        
+        <Button
+          mode="contained"
+          icon="printer"
+          disabled={loading}
+          labelStyle={{ fontSize: 16 }}
+          contentStyle={{
+            height: 78,
+          }}
+          style={{
+            backgroundColor: colors.primary,
+            width: "90%",
+            alignSelf: "center",
+            justifyContent: "center",
+          }}
+          onPress={() => navigation.navigate("Impresora")}
+        >
+          Ir a impresora
         </Button>
 
         <Button

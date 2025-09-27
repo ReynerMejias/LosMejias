@@ -1,6 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { View, TouchableWithoutFeedback, Text } from "react-native";
+import {
+  View,
+  ScrollView,
+  TouchableWithoutFeedback,
+  Text,
+  StatusBar,
+  Platform,
+} from "react-native";
 import {
   Appbar,
   Card,
@@ -8,307 +15,273 @@ import {
   useTheme,
   ActivityIndicator,
   Searchbar,
+  Chip,
 } from "react-native-paper";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
-import { getClientesPaged } from "../api";
-import { FlatList } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { getClientes } from "../api";
 
 export default function Clientes({ navigation }) {
-  const insets = useSafeAreaInsets();
-  const FOOTER_SPACE = 140;
   const { colors } = useTheme();
   const AvatarLetter = ({ letter }) => <Avatar.Text size={45} label={letter} />;
-  const AvatarCheck = (p) => <Avatar.Icon {...p} size={45} icon="check" />;
+  const AvatarCheck = (props) => <Avatar.Icon {...props} size={45} icon="check" />;
 
-  const {
-    params: { lugar },
-  } = useRoute();
-
-  // estado para paginación
-  const [items, setItems] = useState([]); // resultados acumulados (deduplicados)
-  const [page, setPage] = useState(1);
-  const [hasNext, setHasNext] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-
-  // lock para onEndReached (evita triggers dobles)
-  const [endReachedLock, setEndReachedLock] = useState(false);
-
-  // preferencias y búsqueda (solo cliente)
-  const [mostrarCompletados, setMostrarCompletados] = useState(true);
+  const [Clientes, setClientes] = useState([]);
+  const [filteredClientes, setFilteredClientes] = useState([]);
   const [search, setSearch] = useState("");
+  const route = useRoute();
+  const { lugar } = route.params;
+  const [loading, setLoading] = useState(true);
+  const [mostrarCompletados, setMostrarCompletados] = useState(true);
+  const [lastSync, setLastSync] = useState(0);
 
-  useEffect(() => {
-    (async () => {
-      const pref = await AsyncStorage.getItem("mostrarCompletados");
-      if (pref !== null) setMostrarCompletados(pref === "true");
-    })();
-  }, []);
+  const mesHoy = new Date().getMonth() + 1;
+  const CACHE_KEY = useMemo(
+    () => `clientes_${lugar?.id ?? lugar?.nombre}`,
+    [lugar?.id, lugar?.nombre]
+  );
+  const SYNC_KEY = `${CACHE_KEY}_lastSync`;
 
-  const toggleMostrarCompletados = async () => {
-    const v = !mostrarCompletados;
-    setMostrarCompletados(v);
-    await AsyncStorage.setItem("mostrarCompletados", String(v));
+  const statusBarHeight =
+    Platform.OS === "android" ? StatusBar.currentHeight || 0 : 0;
+
+  const formatAgo = (ts) => {
+    if (!ts) return "nunca";
+    const diff = Math.max(0, Date.now() - Number(ts));
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return "justo ahora";
+    if (m < 60) return `${m} min`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h} h`;
+    const d = Math.floor(h / 24);
+    return `${d} d`;
   };
 
-  // helpers
-  const isCompletada = useCallback((c) => {
-    const f = c?.ultima_lectura?.fecha_lectura; // "YYYY-MM-DD"
-    if (!f) return false;
-    const [y, m] = f.split("-").map(Number);
-    const now = new Date();
-    return y === now.getFullYear() && m === now.getMonth() + 1;
-  }, []);
+  const isCompletadaMes = (cliente) =>
+    cliente?.ultima_lectura?.fecha_lectura &&
+    parseInt(cliente.ultima_lectura.fecha_lectura.split("-")[1]) >= mesHoy;
 
-  // ---- Deduplicación y claves robustas ----
-  const makeKey = (c) =>
-    (c?.id != null ? String(c.id) : null) ||
-    [c?.medidor, c?.lote, c?.nombre].filter(Boolean).join("|");
-
-  const dedupeByKey = (arr) => {
-    const map = new Map();
-    for (const x of arr || []) {
-      const k = makeKey(x);
-      if (!k) continue;
-      map.set(k, x); // el último reemplaza si hay duplicado
-    }
-    return Array.from(map.values());
+  const aplicarFiltro = (lista, term) => {
+    if (!term?.trim()) return lista;
+    const t = term.toLowerCase();
+    return lista.filter(
+      (c) =>
+        c.nombre.toLowerCase().includes(t) ||
+        c.medidor.toString().includes(term) ||
+        c.lote.toLowerCase().includes(t)
+    );
   };
-  // -----------------------------------------
 
-  // reset + primera página (SIN search al server)
-  const resetAndFetch = useCallback(async () => {
+  const leerCache = async () => {
+    const raw = await AsyncStorage.getItem(CACHE_KEY);
+    const rawSync = await AsyncStorage.getItem(SYNC_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    setLastSync(rawSync ? Number(rawSync) : 0);
+    return arr;
+  };
+
+  const guardarCache = async (arr) => {
+    await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(arr));
+    const now = Date.now().toString();
+    await AsyncStorage.setItem(SYNC_KEY, now);
+    setLastSync(Number(now));
+  };
+
+  const cargarDesdeCachePrimero = async () => {
     setLoading(true);
-    setPage(1);
     try {
-      const resp = await getClientesPaged(lugar.nombre, { page: 1 });
-      setItems(dedupeByKey(resp.results || []));
-      setHasNext(Boolean(resp.next));
+      const cached = await leerCache();
+      if (cached.length) {
+        setClientes(cached);
+        setFilteredClientes(aplicarFiltro(cached, search));
+        setLoading(false);
+      } else {
+        await recargarOnline();
+      }
     } catch (e) {
-      console.error(e);
-      setItems([]);
-      setHasNext(false);
+      console.error("cargarDesdeCachePrimero", e);
+      await recargarOnline();
     } finally {
       setLoading(false);
     }
-  }, [lugar.nombre]);
+  };
+
+  const recargarOnline = async () => {
+    try {
+      setLoading(true);
+      const data = await getClientes(lugar.nombre);
+      await guardarCache(data);
+      setClientes(data);
+      setFilteredClientes(aplicarFiltro(data, search));
+    } catch (error) {
+      console.error("recargarOnline", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const cargarPreferencia = async () => {
+      const valorGuardado = await AsyncStorage.getItem("mostrarCompletados");
+      if (valorGuardado !== null) setMostrarCompletados(valorGuardado === "true");
+    };
+    cargarPreferencia();
+  }, []);
+
+  useEffect(() => {
+    cargarDesdeCachePrimero();
+  }, [CACHE_KEY]);
 
   useFocusEffect(
     useCallback(() => {
-      resetAndFetch();
-    }, [resetAndFetch])
+      // Al volver de Lectura, solo leer el cache (sin pedir al servidor)
+      (async () => {
+        const cached = await leerCache();
+        if (cached.length) {
+          setClientes(cached);
+          setFilteredClientes(aplicarFiltro(cached, search));
+          setLoading(false);
+        }
+      })();
+    }, [CACHE_KEY, search])
   );
 
-  // siguiente página (SIN search al server) + dedupe
-  const loadMore = async () => {
-    if (!hasNext || loading || loadingMore) return;
-    setLoadingMore(true);
-    try {
-      const nextPage = page + 1;
-      const resp = await getClientesPaged(lugar.nombre, { page: nextPage });
-      setItems((prev) => dedupeByKey([...prev, ...(resp.results || [])]));
-      setPage(nextPage);
-      setHasNext(Boolean(resp.next));
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoadingMore(false);
-    }
-  };
-
-  // normalizador para búsqueda local (ignora tildes y mayúsculas)
-  const norm = (s) =>
-    (s ?? "")
-      .toString()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase();
-
-  // filtra por nombre o lote en el cliente
-  const filteredBySearch = useMemo(() => {
-    const q = norm(search.trim());
-    if (!q) return items;
-    return items.filter((c) => {
-      const n = norm(c?.nombre);
-      const l = norm(c?.lote);
-      return n.includes(q) || l.includes(q);
-    });
-  }, [items, search]);
-
-  // aplicar filtro de "completados"
-  const visibleItems = useMemo(
-    () =>
-      mostrarCompletados
-        ? filteredBySearch
-        : filteredBySearch.filter((c) => !isCompletada(c)),
-    [filteredBySearch, mostrarCompletados, isCompletada]
-  );
-
-  // cuántas filas mínimas quieres ver sin scroll para que no parezca vacío
-  const MIN_ROWS = 12;
-
-  // autollenado si estás viendo "pendientes" y todavía hay páginas
-  const isAutoFilling = useMemo(() => {
-    return (
-      !mostrarCompletados &&
-      search.trim() === "" && // evita autollenar cuando estás buscando
-      visibleItems.length < MIN_ROWS &&
-      !loading &&
-      (hasNext || loadingMore)
-    );
-  }, [
-    mostrarCompletados,
-    search,
-    visibleItems.length,
-    loading,
-    hasNext,
-    loadingMore,
-  ]);
-
-  // cada vez que cambie el filtro, intenta cargar más si corresponde
   useEffect(() => {
-    if (
-      !mostrarCompletados &&
-      visibleItems.length < MIN_ROWS &&
-      hasNext &&
-      !loading &&
-      !loadingMore
-    ) {
-      loadMore(); // se re-ejecutará mientras lleguen páginas y sigas corto
-    }
-  }, [
-    mostrarCompletados,
-    visibleItems.length,
-    hasNext,
-    loading,
-    loadingMore,
-  ]);
+    setFilteredClientes(aplicarFiltro(Clientes, search));
+  }, [search, Clientes]);
 
-  const handlePress = (cliente) => {
+  const toggleMostrarCompletados = async () => {
+    const nuevoEstado = !mostrarCompletados;
+    setMostrarCompletados(nuevoEstado);
+    await AsyncStorage.setItem("mostrarCompletados", nuevoEstado.toString());
+  };
+
+  const handleCardPress = (cliente, index) => {
+    const completada = isCompletadaMes(cliente);
     navigation.navigate("Lectura", {
-      clienteLugarCompletado: [cliente, lugar, isCompletada(cliente)],
+      cliente,
+      lugar,
+      completada,
+      index,
+      cacheKey: CACHE_KEY,
+      total: filteredClientes.length,
     });
   };
 
-  const renderItem = ({ item }) => {
-    const done = isCompletada(item);
-    return (
-      <TouchableWithoutFeedback onPress={() => handlePress(item)}>
-        <Card
-          style={{
-            backgroundColor: colors.surface,
-            borderWidth: done ? 2 : 0,
-            borderColor: done ? colors.primary : "transparent",
-            marginBottom: 10,
-          }}
-        >
-          <Card.Title
-            title={`${item.nombre} "${item.lote}"`}
-            subtitle={
-              item.ultima_lectura
-                ? `Medidor: ${item.medidor} (últ.: ${item.ultima_lectura.lectura})`
-                : `Medidor: ${item.medidor} (últ.: ${item.metros})`
-            }
-            left={() =>
-              done ? (
-                <AvatarCheck />
-              ) : (
-                <AvatarLetter letter={item.nombre?.[0] || "?"} />
-              )
-            }
-          />
-          {done && (
-            <Card.Content>
-              <Text
-                style={{
-                  color: colors.primary,
-                  fontStyle: "italic",
-                  textAlign: "right",
-                }}
-              >
-                Completado
-              </Text>
-            </Card.Content>
-          )}
-        </Card>
-      </TouchableWithoutFeedback>
-    );
-  };
-
-  // keyExtractor robusto
-  const keyExtractor = (it) => {
-    const k =
-      (it?.id != null ? String(it.id) : null) ||
-      [it?.medidor, it?.lote, it?.nombre].filter(Boolean).join("|") ||
-      Math.random().toString(36).slice(2);
-    return k;
-  };
-
-  const onEndReached = () => {
-    if (endReachedLock) return;
-    setEndReachedLock(true);
-    loadMore();
-  };
+  let clientesCompletados = filteredClientes.filter(isCompletadaMes).length;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <Appbar.Header>
         <Appbar.BackAction onPress={() => navigation.goBack()} />
-        <Appbar.Content title={loading ? "Cargando..." : lugar.nombre} />
+        <Appbar.Content
+          title={loading ? "Cargando..." : lugar.nombre}
+          subtitle={`Últ. sync: ${formatAgo(lastSync)}`}
+        />
         <Appbar.Action
           icon={mostrarCompletados ? "bookmark-check" : "bookmark-check-outline"}
           onPress={toggleMostrarCompletados}
+          accessibilityLabel="Mostrar/Ocultar completados"
+        />
+        <Appbar.Action
+          icon="cloud-refresh"
+          onPress={recargarOnline}
+          accessibilityLabel="Recargar desde servidor"
         />
       </Appbar.Header>
 
-      <View style={{ padding: 16 }}>
+      <ScrollView contentContainerStyle={{ padding: 16 }}>
         <Searchbar
-          placeholder="Buscar cliente (nombre o lote)"
+          placeholder="Buscar cliente..."
           value={search}
           onChangeText={setSearch}
-          style={{ marginBottom: 12 }}
-          autoCorrect={false}
-          autoCapitalize="none"
+          style={{ marginBottom: 10 }}
         />
+
+        {!loading && filteredClientes.length > 0 && (
+          <View
+            style={{
+              marginBottom: 16,
+              padding: 12,
+              backgroundColor: colors.card,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: colors.primary,
+              elevation: 2,
+            }}
+          >
+            <Text style={{ color: colors.text, fontSize: 16, fontWeight: "600" }}>
+              Estado de lecturas
+            </Text>
+            <Text style={{ color: colors.text, fontSize: 14, marginTop: 4 }}>
+              {clientesCompletados} de {filteredClientes.length} clientes ya han
+              registrado su lectura este mes.
+            </Text>
+
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+              <Chip icon="check" compact>
+                Completados: {clientesCompletados}
+              </Chip>
+              <Chip icon="progress-clock" compact>
+                Pendientes: {filteredClientes.length - clientesCompletados}
+              </Chip>
+            </View>
+          </View>
+        )}
 
         {loading ? (
           <ActivityIndicator />
-        ) : isAutoFilling ? (
-          <View style={{ alignItems: "center", paddingVertical: 16 }}>
-            <ActivityIndicator />
-            <Text style={{ marginTop: 8, color: colors.text, opacity: 0.7 }}>
-              Buscando clientes pendientes…
-            </Text>
-          </View>
-        ) : visibleItems.length === 0 ? (
+        ) : filteredClientes.length === 0 ? (
           <Text style={{ color: colors.text, textAlign: "center" }}>
             No hay clientes en este lugar.
           </Text>
         ) : (
-          <FlatList
-            data={visibleItems}
-            keyExtractor={keyExtractor}
-            renderItem={renderItem}
-            onEndReached={onEndReached}
-            onMomentumScrollBegin={() => setEndReachedLock(false)}
-            onEndReachedThreshold={0.2}
-            contentContainerStyle={{ paddingBottom: (insets?.bottom ?? 0) + FOOTER_SPACE, paddingTop: 4 }}
-            ListFooterComponent={
-              loadingMore ? (
-                <ActivityIndicator style={{ marginVertical: 12 }} />
-              ) : (
-                <View style={{ height: 16 }} />
-              )
-            }
-            removeClippedSubviews
-            initialNumToRender={18}
-            maxToRenderPerBatch={12}
-            windowSize={7}
-            showsVerticalScrollIndicator={false}
-          />
+          filteredClientes.map((cliente, index) => {
+            const completada = isCompletadaMes(cliente);
+            if (!mostrarCompletados && completada) return null;
+
+            return (
+              <TouchableWithoutFeedback
+                key={cliente.id ?? index}
+                onPress={() => handleCardPress(cliente, index)}
+              >
+                <Card
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderWidth: completada ? 2 : 0,
+                    borderColor: completada ? colors.primary : "transparent",
+                    marginBottom: 10,
+                  }}
+                >
+                  <Card.Title
+                    title={`${cliente.nombre} "${cliente.lote}"`}
+                    subtitle={
+                      cliente.ultima_lectura
+                        ? `Medidor: ${cliente.medidor} (últ.: ${cliente.ultima_lectura.lectura})`
+                        : `Medidor: ${cliente.medidor} (últ.: ${cliente.metros})`
+                    }
+                    left={() =>
+                      completada ? <AvatarCheck /> : <AvatarLetter letter={cliente.nombre[0]} />
+                    }
+                  />
+                  {completada && (
+                    <Card.Content>
+                      <Text
+                        style={{
+                          color: colors.primary,
+                          fontStyle: "italic",
+                          textAlign: "right",
+                        }}
+                      >
+                        Completado
+                      </Text>
+                    </Card.Content>
+                  )}
+                </Card>
+              </TouchableWithoutFeedback>
+            );
+          })
         )}
-      </View>
+      </ScrollView>
     </View>
   );
 }

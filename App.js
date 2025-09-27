@@ -1,17 +1,17 @@
 import * as React from "react";
 import {
   MD3DarkTheme as DefaultTheme,
-  PaperProvider,
+  PaperProvider, Text as PaperText
 } from "react-native-paper";
 import "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { StatusBar } from "react-native";
+import { StatusBar, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
+import { useEffect } from "react";
 
 // Importar pantallas
 import InicioSesion from "./src/screens/InicioSesion";
-import Clientes from "./src/screens/Clientes";
 import Lectura from "./src/screens/Lectura";
 import Lecturas from "./src/screens/Lecturas";
 import Realizar from "./src/screens/Realizar";
@@ -19,6 +19,7 @@ import EditarPerfil from "./src/screens/EditarPerfil";
 import Solicitud from "./src/screens/Solicitud";
 import Bienvenida from "./src/screens/Bienvenida";
 import Correo from "./src/screens/Correo";
+import Impresora from "./src/screens/ImpresoraBT";
 
 const theme = {
   ...DefaultTheme,
@@ -39,6 +40,12 @@ const theme = {
 const Stack = createStackNavigator();
 
 export default function App() {
+  const isHermes = !!global.HermesInternal;
+
+  useEffect(() => {
+    console.log("APP MOUNT — Hermes?", isHermes);  // [4] fuerza un log al montar
+  }, [isHermes]);
+
   return (
     <PaperProvider theme={theme}>
       <SafeAreaProvider>
@@ -57,8 +64,8 @@ export default function App() {
             <Stack.Screen name="Realizar" component={Realizar} />
             <Stack.Screen name="Lecturas" component={Lecturas} />
             <Stack.Screen name="Lectura" component={Lectura} />
-            <Stack.Screen name="Clientes" component={Clientes} />
             <Stack.Screen name="Correo" component={Correo} />
+            <Stack.Screen name="Impresora" component={Impresora} />
           </Stack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>
