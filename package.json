@@ -14,6 +14,7 @@
     "@react-navigation/native": "^7.1.9",
     "@react-navigation/stack": "^7.3.2",
     "expo": "~53.0.23",
+    "expo-asset": "~11.1.7",
     "expo-dev-client": "~5.2.4",
     "expo-image-picker": "^16.1.4",
     "expo-print": "^14.1.4",
@@ -40,7 +41,7 @@
     "typescript": "~5.8.3"
   },
   "private": true,
-  "expo" : {
+  "expo": {
     "doctor": {
       "reactNativeDirectoryCheck": {
         "exclude": [
@@ -50,7 +51,7 @@
           "@react-native-community/cli"
         ],
         "listUnknownPackages": false
-    }
+      }
     }
   }
 }
