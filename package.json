@@ -34,11 +34,23 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "@expo/config-plugins": "~10.1.1",
     "@types/react": "~19.0.10",
     "metro-react-native-babel-preset": "^0.77.0",
     "patch-package": "^8.0.0",
     "typescript": "~5.8.3"
   },
-  "private": true
+  "private": true,
+  "expo" : {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "react-native-bluetooth-classic",
+          "react-native-bluetooth-serial-next",
+          "react-native-bluetooth-escpos-printer",
+          "@react-native-community/cli"
+        ],
+        "listUnknownPackages": false
+    }
+    }
+  }
 }
