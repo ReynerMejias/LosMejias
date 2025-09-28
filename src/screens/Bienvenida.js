@@ -71,7 +71,7 @@ export default function Bienvenida({ navigation }) {
         <Button
           mode="contained"
           icon="pen"
-          disabled={false}
+          disabled={loading}
           labelStyle={{ fontSize: 16 }}
           contentStyle={{
             height: 78, 
@@ -119,14 +119,14 @@ export default function Bienvenida({ navigation }) {
             alignSelf: "center",
             justifyContent: "center",
           }}
-          onPress={() => navigation.navigate("Impresora")}
+          onPress={() => navigation.navigate("ImpresoraBT")}
         >
           Ir a impresora
         </Button>
 
         <Button
           mode="contained"
-          icon="account"
+          icon="logout"
           disabled={loading}
           labelStyle={{ fontSize: 16 }}
           contentStyle={{
@@ -154,6 +154,7 @@ export default function Bienvenida({ navigation }) {
         >
           Cerrar sesión
         </Button>
+
       </View>
     </View>
   );
